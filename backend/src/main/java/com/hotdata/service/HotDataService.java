@@ -63,10 +63,14 @@ public class HotDataService {
                 .map(src -> CompletableFuture.supplyAsync(() -> fetchOne(src, now), executor))
                 .toList();
 
+        // 整体封顶等待：所有源并行抓取，最多等待 25 秒
+        // 超时的源各自用缓存兜底，避免单个慢源(如FlareSolverr)拖垮整个接口导致网关504
+        long deadline = System.currentTimeMillis() + 25_000L;
         List<HotBoard> boards = new ArrayList<>();
         for (int i = 0; i < futures.size(); i++) {
+            long remaining = deadline - System.currentTimeMillis();
             try {
-                boards.add(futures.get(i).get(15, TimeUnit.SECONDS));
+                boards.add(futures.get(i).get(Math.max(0, remaining), TimeUnit.MILLISECONDS));
             } catch (Exception e) {
                 HotSource src = sources.get(i);
                 HotBoard cached = latestBoards.get(src.platform());

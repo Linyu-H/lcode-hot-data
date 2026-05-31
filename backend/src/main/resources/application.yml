@@ -25,7 +25,7 @@ hotdata:
 flaresolverr:
   enabled: true  # 设置为true启用FlareSolverr
   url: "http://localhost:8191"  # FlareSolverr服务地址
-  timeout: 60000  # 超时时间（毫秒）
+  timeout: 20000  # 超时时间（毫秒），降低以避免拖垮refresh接口
 
 logging:
   level:
