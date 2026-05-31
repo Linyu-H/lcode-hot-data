@@ -6,7 +6,6 @@ import HotBoard from './components/HotBoard.vue'
 import AggregateBoard from './components/AggregateBoard.vue'
 import TrendChart from './components/TrendChart.vue'
 import StatsChart from './components/StatsChart.vue'
-import PreviewPanel from './components/PreviewPanel.vue'
 import logoUrl from '../hot.logo.png'
 
 const store = useHotStore()
@@ -14,11 +13,6 @@ const { boards, snapshot, aggregate, selected, connection, selectedTrend } = sto
 
 const activeTab = ref('all')
 const darkMode = ref(false)
-
-// 侧边预览面板状态
-const previewVisible = ref(false)
-const previewUrl = ref('')
-const previewTitle = ref('')
 
 onMounted(async () => {
   // 读取本地存储的主题设置
@@ -78,17 +72,6 @@ const statusText = {
 
 function pickItem(payload) {
   store.select(payload.platform, payload.title)
-}
-
-// 鼠标悬停热点 → 侧边弹出iframe预览
-function showPreview(payload) {
-  previewUrl.value = payload.url
-  previewTitle.value = payload.title
-  previewVisible.value = true
-}
-
-function closePreview() {
-  previewVisible.value = false
 }
 
 function refresh() {
@@ -157,7 +140,6 @@ const isAllView = computed(() => activeTab.value === 'all')
               :board="board"
               :selected="selected"
               @pick="pickItem"
-              @preview="showPreview"
             />
           </div>
 
@@ -177,7 +159,6 @@ const isAllView = computed(() => activeTab.value === 'all')
               :board="board"
               :selected="selected"
               @pick="pickItem"
-              @preview="showPreview"
             />
           </div>
 
@@ -194,14 +175,6 @@ const isAllView = computed(() => activeTab.value === 'all')
         <p class="copyright">© 2026 Lcode · 热点聚合平台 · 仅供学习交流</p>
       </div>
     </footer>
-
-    <!-- 侧边热点预览面板 -->
-    <PreviewPanel
-      :visible="previewVisible"
-      :url="previewUrl"
-      :title="previewTitle"
-      @close="closePreview"
-    />
   </div>
 </template>
 

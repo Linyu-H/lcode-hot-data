@@ -1,14 +1,32 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   board: { type: Object, required: true },
   selected: { type: Object, default: null }
 })
 
-const emit = defineEmits(['pick', 'preview'])
+const emit = defineEmits(['pick'])
 
-let hoverTimer = null
+const hoverItem = ref(null)
+const tooltipStyle = ref({ left: '0px', top: '0px' })
+const previewLoading = ref(false)
+const previewFailed = ref(false)
+let previewTimer = null
+
+function moveTooltip(event) {
+  const width = 430
+  const height = 360
+  const gap = 14
+  const left = event.clientX + width + gap > window.innerWidth
+    ? event.clientX - width - gap
+    : event.clientX + gap
+  const top = Math.min(event.clientY + gap, window.innerHeight - height - 12)
+  tooltipStyle.value = {
+    left: `${Math.max(12, left)}px`,
+    top: `${Math.max(12, top)}px`
+  }
+}
 
 const updatedAt = computed(() => {
   if (!props.board.updatedAt) return ''
@@ -26,17 +44,36 @@ function pick(item) {
   emit('pick', { platform: props.board.platform, title: item.title })
 }
 
-// 悬停 400ms 后触发侧边预览，避免鼠标划过误触发
-function onEnter(item) {
-  if (!item.url) return
-  clearTimeout(hoverTimer)
-  hoverTimer = setTimeout(() => {
-    emit('preview', { url: item.url, title: item.title })
-  }, 400)
+function onEnter(item, event) {
+  hoverItem.value = item
+  previewFailed.value = false
+  previewLoading.value = Boolean(item.url)
+  clearTimeout(previewTimer)
+  if (item.url) {
+    previewTimer = setTimeout(() => {
+      if (hoverItem.value === item && previewLoading.value) {
+        previewFailed.value = true
+        previewLoading.value = false
+      }
+    }, 2500)
+  }
+  moveTooltip(event)
 }
 
 function onLeave() {
-  clearTimeout(hoverTimer)
+  hoverItem.value = null
+  previewLoading.value = false
+  previewFailed.value = false
+  clearTimeout(previewTimer)
+}
+
+function onPreviewLoad() {
+  previewLoading.value = false
+}
+
+function onPreviewError() {
+  previewLoading.value = false
+  previewFailed.value = true
 }
 
 function isActive(item) {
@@ -64,7 +101,8 @@ function isActive(item) {
         class="item"
         :class="{ active: isActive(item) }"
         @click="pick(item)"
-        @mouseenter="onEnter(item)"
+        @mouseenter="onEnter(item, $event)"
+        @mousemove="moveTooltip"
         @mouseleave="onLeave"
       >
         <span class="rank" :class="{ top: item.rank <= 3 }">{{ item.rank }}</span>
@@ -73,7 +111,7 @@ function isActive(item) {
             <a class="item-title" :href="item.url" target="_blank" @click.stop>
               {{ item.title }}
             </a>
-            <span v-if="item.url" class="preview-chip">悬停预览</span>
+            <span v-if="item.url" class="preview-chip">详情</span>
           </div>
           <div class="info" v-if="item.extra || item.hotValue">
             <span v-if="item.extra" class="tag">{{ item.extra }}</span>
@@ -86,6 +124,59 @@ function isActive(item) {
         暂无数据
       </div>
     </div>
+
+    <teleport to="body">
+      <transition name="tooltip-fade">
+        <div
+          v-if="hoverItem"
+          class="hot-tooltip"
+          :style="tooltipStyle"
+        >
+          <div class="tooltip-head">
+            <span class="tooltip-platform">{{ board.platformName }}</span>
+            <span class="tooltip-rank">#{{ hoverItem.rank }}</span>
+          </div>
+          <div class="tooltip-title">{{ hoverItem.title }}</div>
+          <div class="tooltip-grid">
+            <div>
+              <span>热度</span>
+              <strong>{{ hoverItem.hotValue || hoverItem.hotScore || '暂无' }}</strong>
+            </div>
+            <div>
+              <span>附加信息</span>
+              <strong>{{ hoverItem.extra || '暂无' }}</strong>
+            </div>
+          </div>
+          <div class="tooltip-page" v-if="hoverItem.url && !previewFailed">
+            <div class="tooltip-browser-bar">
+              <span></span>
+              <span></span>
+              <span></span>
+              <strong>{{ board.platformName }} 原文详情页</strong>
+            </div>
+            <div v-if="previewLoading" class="tooltip-loading">
+              <span class="mini-spinner"></span>
+              正在加载详情页…
+            </div>
+            <iframe
+              :src="hoverItem.url"
+              class="tooltip-iframe"
+              frameborder="0"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              referrerpolicy="no-referrer"
+              @load="onPreviewLoad"
+              @error="onPreviewError"
+            ></iframe>
+          </div>
+          <div class="tooltip-fallback" v-else-if="hoverItem.url">
+            <div class="fallback-label">该网站不支持悬浮预览</div>
+            <div class="fallback-title">{{ hoverItem.title }}</div>
+            <a class="fallback-link" :href="hoverItem.url" target="_blank">{{ hoverItem.url }}</a>
+          </div>
+          <div class="tooltip-tip">点击条目查看趋势 · 点击标题打开完整页面</div>
+        </div>
+      </transition>
+    </teleport>
   </div>
 </template>
 
@@ -349,6 +440,256 @@ function isActive(item) {
 
 .dark .empty {
   color: #a1a1a6;
+}
+
+.hot-tooltip {
+  position: fixed;
+  width: 430px;
+  z-index: 2000;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+  backdrop-filter: saturate(180%) blur(22px);
+  pointer-events: none;
+  color: #1d1d1f;
+}
+
+.dark .hot-tooltip {
+  background: rgba(29, 29, 31, 0.94);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  color: #f5f5f7;
+}
+
+.tooltip-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tooltip-platform {
+  color: #86868b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dark .tooltip-platform {
+  color: #a1a1a6;
+}
+
+.tooltip-rank {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff3b30, #ff9f0a);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tooltip-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.tooltip-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.tooltip-grid > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dark .tooltip-grid > div {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.tooltip-grid span {
+  display: block;
+  color: #86868b;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.dark .tooltip-grid span {
+  color: #a1a1a6;
+}
+
+.tooltip-grid strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.tooltip-page {
+  position: relative;
+  overflow: hidden;
+  height: 230px;
+  margin: 10px 0 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+
+.dark .tooltip-page {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #fff;
+}
+
+.tooltip-browser-bar {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: #f5f5f7;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.tooltip-browser-bar span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff5f57;
+}
+
+.tooltip-browser-bar span:nth-child(2) {
+  background: #ffbd2e;
+}
+
+.tooltip-browser-bar span:nth-child(3) {
+  background: #28c840;
+}
+
+.tooltip-browser-bar strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.tooltip-iframe {
+  width: 100%;
+  height: calc(100% - 28px);
+  border: 0;
+  background: #fff;
+  transform: scale(0.72);
+  transform-origin: 0 0;
+  width: 138.888%;
+  height: calc((100% - 28px) / 0.72);
+}
+
+.tooltip-loading {
+  position: absolute;
+  inset: 28px 0 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #86868b;
+  font-size: 12px;
+}
+
+.mini-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 113, 227, 0.18);
+  border-top-color: #0071e3;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.tooltip-fallback {
+  margin: 10px 0 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(0, 113, 227, 0.07);
+  border: 1px solid rgba(0, 113, 227, 0.16);
+}
+
+.dark .tooltip-fallback {
+  background: rgba(10, 132, 255, 0.12);
+  border-color: rgba(100, 210, 255, 0.18);
+}
+
+.fallback-label {
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dark .fallback-label {
+  color: #a1a1a6;
+}
+
+.fallback-title {
+  color: #1d1d1f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin-bottom: 8px;
+}
+
+.dark .fallback-title {
+  color: #f5f5f7;
+}
+
+.fallback-link {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #0071e3;
+  font-size: 12px;
+  pointer-events: auto;
+}
+
+.dark .fallback-link {
+  color: #64d2ff;
+}
+
+.tooltip-tip {
+  color: #86868b;
+  font-size: 11px;
+}
+
+.dark .tooltip-tip {
+  color: #a1a1a6;
+}
+
+.tooltip-fade-enter-active,
+.tooltip-fade-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.tooltip-fade-enter-from,
+.tooltip-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
 }
 
 /* 滚动条 - Apple风格 */
