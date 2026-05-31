@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: hotdata-backend
+  jackson:
+    default-property-inclusion: non_null
+
+hotdata:
+  fetch:
+    interval-ms: 60000
+    timeout-ms: 15000
+    user-agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+  history:
+    max-snapshots: 60
+  cors:
+    allowed-origins: "http://localhost:5173,http://127.0.0.1:5173"
+  proxy:
+    enabled: true
+    host: "127.0.0.1"
+    port: 7897
+
+logging:
+  level:
+    com.hotdata: INFO
+    org.springframework.web: WARN
