@@ -56,6 +56,8 @@ services:
     container_name: hotdata-frontend
     ports:
       - "3003:80"  # 使用3003端口，避免与OpenResty(80)冲突
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro  # 挂载nginx配置，改配置只需重启容器
     depends_on:
       - backend
     restart: unless-stopped
