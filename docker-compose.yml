@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # FlareSolverr服务 - Cloudflare绕过
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: hotdata-flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - LOG_HTML=false
+      - CAPTCHA_SOLVER=none
+      - TZ=Asia/Shanghai
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+    networks:
+      - hotdata-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # 后端服务
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: hotdata-backend
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - TZ=Asia/Shanghai
+      - FLARESOLVERR_ENABLED=true
+      - FLARESOLVERR_URL=http://flaresolverr:8191
+    ports:
+      - "8080:8080"
+    depends_on:
+      - flaresolverr
+    restart: unless-stopped
+    networks:
+      - hotdata-network
+    volumes:
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  # 前端服务
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: hotdata-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - hotdata-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  hotdata-network:
+    driver: bridge
+
+volumes:
+  logs:

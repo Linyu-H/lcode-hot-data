@@ -21,6 +21,12 @@ hotdata:
     host: "127.0.0.1"
     port: 7897
 
+# FlareSolverr配置 - 用于绕过Cloudflare保护
+flaresolverr:
+  enabled: true  # 设置为true启用FlareSolverr
+  url: "http://localhost:8191"  # FlareSolverr服务地址
+  timeout: 60000  # 超时时间（毫秒）
+
 logging:
   level:
     com.hotdata: INFO
