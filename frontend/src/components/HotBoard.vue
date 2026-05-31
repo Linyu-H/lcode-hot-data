@@ -14,7 +14,12 @@ const previewLoading = ref(false)
 const previewFailed = ref(false)
 let previewTimer = null
 
+function canShowPreview() {
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches && window.innerWidth > 768
+}
+
 function moveTooltip(event) {
+  if (!hoverItem.value || !canShowPreview()) return
   const width = 430
   const height = 360
   const gap = 14
@@ -45,6 +50,7 @@ function pick(item) {
 }
 
 function onEnter(item, event) {
+  if (!canShowPreview()) return
   hoverItem.value = item
   previewFailed.value = false
   previewLoading.value = Boolean(item.url)
@@ -105,7 +111,7 @@ function isActive(item) {
         @mousemove="moveTooltip"
         @mouseleave="onLeave"
       >
-        <span class="rank" :class="{ top: item.rank <= 3 }">{{ item.rank }}</span>
+        <span class="rank" :class="{ top: item.rank <= 3, first: item.rank === 1, second: item.rank === 2, third: item.rank === 3 }">{{ item.rank }}</span>
         <div class="content">
           <div class="title-row">
             <a class="item-title" :href="item.url" target="_blank" @click.stop>
@@ -323,15 +329,38 @@ function isActive(item) {
 }
 
 .rank.top {
-  background: linear-gradient(135deg, #ff3b30 0%, #ff6b58 100%);
   color: #fff;
   font-size: 13px;
-  box-shadow: 0 2px 8px rgba(255, 59, 48, 0.25);
 }
 
-.dark .rank.top {
-  background: linear-gradient(135deg, #ff453a 0%, #ff6961 100%);
-  box-shadow: 0 2px 8px rgba(255, 69, 58, 0.4);
+.rank.first {
+  background: linear-gradient(135deg, #ffcc00 0%, #ff9500 100%);
+  box-shadow: 0 3px 10px rgba(255, 149, 0, 0.28);
+}
+
+.rank.second {
+  background: linear-gradient(135deg, #c7d2fe 0%, #8e8e93 100%);
+  box-shadow: 0 3px 10px rgba(142, 142, 147, 0.24);
+}
+
+.rank.third {
+  background: linear-gradient(135deg, #ff9f0a 0%, #bf5af2 100%);
+  box-shadow: 0 3px 10px rgba(191, 90, 242, 0.24);
+}
+
+.dark .rank.first {
+  background: linear-gradient(135deg, #ffd60a 0%, #ff9f0a 100%);
+  box-shadow: 0 3px 12px rgba(255, 214, 10, 0.36);
+}
+
+.dark .rank.second {
+  background: linear-gradient(135deg, #d1d1d6 0%, #636366 100%);
+  box-shadow: 0 3px 12px rgba(209, 209, 214, 0.22);
+}
+
+.dark .rank.third {
+  background: linear-gradient(135deg, #ff9f0a 0%, #ff453a 100%);
+  box-shadow: 0 3px 12px rgba(255, 159, 10, 0.28);
 }
 
 .content {
@@ -719,6 +748,12 @@ function isActive(item) {
 }
 
 /* 响应式 */
+@media (max-width: 768px), (hover: none), (pointer: coarse) {
+  .preview-chip {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
   .board {
     height: 500px;

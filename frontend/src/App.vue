@@ -100,12 +100,15 @@ const isAllView = computed(() => activeTab.value === 'all')
               <span class="divider">·</span>
               <span class="stat">{{ totalCount }} 条</span>
             </div>
-            <span class="status" :class="'status-' + connection">{{ statusText[connection] }}</span>
+            <span class="status" :class="'status-' + connection">
+              <i></i>{{ statusText[connection] }}
+            </span>
             <button class="btn-theme" @click="toggleDarkMode" :title="darkMode ? '切换到浅色模式' : '切换到深色模式'">
               {{ darkMode ? '☀️' : '🌙' }}
             </button>
             <button class="btn-refresh" @click="refresh" :disabled="connection === 'refreshing'">
-              刷新
+              <span v-if="connection === 'refreshing'" class="refresh-spinner"></span>
+              <span>{{ connection === 'refreshing' ? '刷新中' : '刷新' }}</span>
             </button>
           </div>
         </div>
@@ -296,6 +299,9 @@ const isAllView = computed(() => activeTab.value === 'all')
 }
 
 .status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   padding: 4px 10px;
   border-radius: 12px;
@@ -303,6 +309,14 @@ const isAllView = computed(() => activeTab.value === 'all')
   color: #86868b;
   font-weight: 500;
   transition: background 0.3s ease, color 0.3s ease;
+}
+
+.status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.75;
 }
 
 .dark .status {
@@ -351,17 +365,35 @@ const isAllView = computed(() => activeTab.value === 'all')
 }
 
 .btn-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
   padding: 6px 14px;
   background: #0071e3;
   color: #fff;
   border-radius: 12px;
   font-size: 13px;
-  font-weight: 400;
-  transition: background 0.2s ease;
+  font-weight: 500;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .btn-refresh:hover:not(:disabled) {
   background: #0077ed;
+  transform: translateY(-1px);
+}
+
+.refresh-spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: refresh-spin 0.8s linear infinite;
+}
+
+@keyframes refresh-spin {
+  to { transform: rotate(360deg); }
 }
 
 .btn-refresh:disabled {
