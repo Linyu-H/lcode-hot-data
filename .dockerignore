@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Maven
+target
+*.class
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.swp
+*.bak
+
+# 文档（不需要打包到镜像）
+*.md
+!README.md
+
+# Docker相关
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# 脚本
+*.sh
+!docker-deploy.sh
