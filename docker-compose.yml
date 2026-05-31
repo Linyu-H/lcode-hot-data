@@ -34,7 +34,7 @@ services:
       - FLARESOLVERR_URL=http://flaresolverr:8191
       - HOTDATA_PROXY_ENABLED=false  # Docker环境禁用代理
     ports:
-      - "8080:8080"  # 改回8080，本地服务已停止
+      - "8889:80"
     depends_on:
       - flaresolverr
     restart: unless-stopped

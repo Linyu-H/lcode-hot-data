@@ -7,9 +7,9 @@ import com.hotdata.service.HotDataService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -46,7 +46,8 @@ public class HotDataController {
         return service.aggregateRanking(top);
     }
 
-    @PostMapping("/refresh")
+    // 同时支持 GET 和 POST：Cloudflare 对 POST 请求拦截较严，前端改用 GET
+    @RequestMapping(value = "/refresh", method = {RequestMethod.GET, RequestMethod.POST})
     public HotSnapshot refresh() {
         return service.refresh();
     }

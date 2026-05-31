@@ -52,7 +52,7 @@ export const useHotStore = defineStore('hot', {
     async manualRefresh() {
       this.connection = 'refreshing'
       try {
-        const r = await fetch('/api/hot/refresh', { method: 'POST' })
+        const r = await fetch('/api/hot/refresh', { method: 'GET' })
         if (r.ok) this.snapshot = await r.json()
         await this.loadAggregate()
       } finally {
