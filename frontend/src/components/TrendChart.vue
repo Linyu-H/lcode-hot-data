@@ -27,6 +27,20 @@ const isDark = computed(() => {
 
 const hasEnoughData = computed(() => props.data.length >= 2)
 const pointLabel = computed(() => `${props.data.length} 个数据点`)
+const currentRank = computed(() => props.data.at(-1)?.rank ?? null)
+const bestRank = computed(() => props.data.length ? Math.min(...props.data.map(p => p.rank)) : null)
+const rankDelta = computed(() => {
+  if (props.data.length < 2) return null
+  const prev = props.data.at(-2).rank
+  const cur = props.data.at(-1).rank
+  return prev - cur
+})
+const deltaText = computed(() => {
+  if (rankDelta.value === null) return '等待对比'
+  if (rankDelta.value > 0) return `上升 ${rankDelta.value}`
+  if (rankDelta.value < 0) return `下降 ${Math.abs(rankDelta.value)}`
+  return '持平'
+})
 
 const option = computed(() => {
   const points = props.data.map(p => [p.timestamp, p.rank])
@@ -142,8 +156,15 @@ watch(option, (v) => chart && chart.setOption(v, true))
       <span v-if="selected" class="point-badge">{{ pointLabel }}</span>
     </header>
     <div class="chart" ref="chartEl"></div>
-    <div v-if="selected && !hasEnoughData" class="hint">
-      已显示当前排名，下次抓取后自动连成趋势线
+    <div v-if="selected && !hasEnoughData" class="single-state">
+      <span>当前排名</span>
+      <strong>#{{ currentRank || '-' }}</strong>
+      <em>等待下次抓取后生成趋势线</em>
+    </div>
+    <div v-else-if="selected && hasEnoughData" class="trend-summary">
+      <div><span>当前</span><strong>#{{ currentRank }}</strong></div>
+      <div><span>最佳</span><strong>#{{ bestRank }}</strong></div>
+      <div><span>变化</span><strong>{{ deltaText }}</strong></div>
     </div>
     <div v-if="!selected" class="placeholder">
       <div class="ph-icon">📊</div>
@@ -262,25 +283,95 @@ h3 {
   flex: 1;
 }
 
-.hint {
+.single-state,
+.trend-summary {
   position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  color: #86868b;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 6px 12px;
-  border-radius: 12px;
+  left: 18px;
+  right: 18px;
+  bottom: 14px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  font-weight: 400;
-  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  backdrop-filter: saturate(180%) blur(18px);
 }
 
-.dark .hint {
-  color: #a1a1a6;
-  background: rgba(29, 29, 31, 0.95);
+.dark .single-state,
+.dark .trend-summary {
+  background: rgba(29, 29, 31, 0.9);
   border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+}
+
+.single-state {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.single-state span,
+.trend-summary span {
+  color: #86868b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dark .single-state span,
+.dark .trend-summary span {
+  color: #a1a1a6;
+}
+
+.single-state strong {
+  color: #0071e3;
+  font-size: 28px;
+  line-height: 1;
+  justify-self: end;
+}
+
+.dark .single-state strong {
+  color: #64d2ff;
+}
+
+.single-state em {
+  grid-column: 1 / -1;
+  color: #86868b;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.dark .single-state em {
+  color: #a1a1a6;
+}
+
+.trend-summary {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.trend-summary div {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(0, 113, 227, 0.07);
+}
+
+.dark .trend-summary div {
+  background: rgba(10, 132, 255, 0.12);
+}
+
+.trend-summary strong {
+  display: block;
+  margin-top: 3px;
+  color: #1d1d1f;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark .trend-summary strong {
+  color: #f5f5f7;
 }
 
 .placeholder {

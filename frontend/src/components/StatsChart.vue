@@ -22,6 +22,7 @@ let chart = null
 // 检测深色模式
 const isDark = computed(() => {
   return document.documentElement.classList.contains('dark')
+    || document.documentElement.getAttribute('data-theme') === 'dark'
 })
 
 const option = computed(() => {
@@ -138,7 +139,7 @@ onMounted(() => {
   })
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['class']
+    attributeFilter: ['class', 'data-theme']
   })
 })
 

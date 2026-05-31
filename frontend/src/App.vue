@@ -20,6 +20,7 @@ onMounted(async () => {
   if (savedTheme === 'dark') {
     darkMode.value = true
     document.documentElement.classList.add('dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
   }
 
   await store.loadSnapshot()
@@ -31,9 +32,11 @@ function toggleDarkMode() {
   darkMode.value = !darkMode.value
   if (darkMode.value) {
     document.documentElement.classList.add('dark')
+    document.documentElement.setAttribute('data-theme', 'dark')
     localStorage.setItem('theme', 'dark')
   } else {
     document.documentElement.classList.remove('dark')
+    document.documentElement.setAttribute('data-theme', 'light')
     localStorage.setItem('theme', 'light')
   }
 }
