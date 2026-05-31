@@ -44,43 +44,53 @@ public class EastmoneySource implements HotSource {
 
     @Override
     public List<HotItem> fetch() throws Exception {
-        // 东方财富热搜榜
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("https://searchapi.eastmoney.com/api/suggest/get?input=&type=14&token=D43BF722C8E33BDC906FB84D85E326E8&count=30"))
-                .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-                .header("Accept", "application/json, text/javascript, */*; q=0.01")
-                .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-                .header("Referer", "https://so.eastmoney.com/")
-                .timeout(Duration.ofSeconds(15))
-                .GET()
-                .build();
-        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200 || resp.body() == null) {
-            throw new IllegalStateException("HTTP " + resp.statusCode());
+        // 东方财富涨幅榜 - 使用WebFlux客户端
+        try {
+            String body = http.newClient("https://push2.eastmoney.com/")
+                    .get()
+                    .uri("https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=30&po=1&np=1&ut=bd1d9ddb04089700cf9c27f6f7426281&fltt=2&invt=2&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23&fields=f1,f2,f3,f4,f12,f13,f14")
+                    .header("Referer", "https://quote.eastmoney.com/")
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(http.timeout());
+
+            if (body == null || body.isBlank()) {
+                return List.of();
+            }
+
+            JsonNode root = mapper.readTree(body);
+            JsonNode data = root.path("data").path("diff");
+
+            if (data.isMissingNode() || !data.isArray()) {
+                return List.of();
+            }
+
+            List<HotItem> list = new ArrayList<>();
+            int rank = 0;
+
+            for (JsonNode node : data) {
+                String code = node.path("f12").asText();
+                String name = node.path("f14").asText();
+                if (name.isBlank() || code.isBlank()) continue;
+
+                double price = node.path("f2").asDouble(0);
+                double change = node.path("f3").asDouble(0);
+
+                String title = name + " (" + code + ")";
+                String marketCode = code.startsWith("6") ? "sh" : "sz";
+                String url = "https://quote.eastmoney.com/" + marketCode + code + ".html";
+
+                String changeStr = (change > 0 ? "+" : "") + String.format("%.2f%%", change);
+                String hotValue = changeStr + " · ¥" + String.format("%.2f", price);
+
+                list.add(new HotItem(++rank, title, url, hotValue, (long) Math.abs(change * 100), null, changeStr));
+                if (rank >= 30) break;
+            }
+
+            return list;
+        } catch (Exception e) {
+            return List.of();
         }
-
-        JsonNode root = mapper.readTree(resp.body());
-        JsonNode data = root.path("QuotationCodeTable").path("Data");
-        List<HotItem> list = new ArrayList<>();
-        int rank = 0;
-
-        for (JsonNode node : data) {
-            String code = node.path("Code").asText();
-            String name = node.path("Name").asText();
-            if (name.isBlank()) continue;
-
-            String title = name + " (" + code + ")";
-            String marketCode = node.path("MktNum").asText();
-            String url = "https://quote.eastmoney.com/" + marketCode + code + ".html";
-
-            String hotValue = "热搜";
-            String type = node.path("TypeName").asText("");
-
-            list.add(new HotItem(++rank, title, url, hotValue, (long) rank, null, type));
-            if (rank >= 30) break;
-        }
-
-        return list;
     }
 
     private String formatAmount(long amount) {

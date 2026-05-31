@@ -44,52 +44,9 @@ public class NodeSeekSource implements HotSource {
 
     @Override
     public List<HotItem> fetch() throws Exception {
-        // NodeSeek使用Discourse论坛系统，类似NodeLoc
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("https://www.nodeseek.com/latest.json"))
-                .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-                .header("Accept", "application/json, text/javascript, */*; q=0.01")
-                .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-                .header("Referer", "https://www.nodeseek.com/")
-                .header("sec-ch-ua", "\"Chromium\";v=\"131\", \"Google Chrome\";v=\"131\"")
-                .header("sec-fetch-dest", "empty")
-                .header("sec-fetch-mode", "cors")
-                .header("sec-fetch-site", "same-origin")
-                .timeout(Duration.ofSeconds(15))
-                .GET()
-                .build();
-        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200 || resp.body() == null) {
-            throw new IllegalStateException("HTTP " + resp.statusCode());
-        }
-        JsonNode root = mapper.readTree(resp.body());
-        JsonNode topics = root.path("topic_list").path("topics");
-        List<HotItem> list = new ArrayList<>();
-        int rank = 0;
-        for (JsonNode node : topics) {
-            if (node.path("pinned").asBoolean(false)) continue;
-            String title = node.path("title").asText();
-            if (title.isBlank()) continue;
-            long id = node.path("id").asLong();
-            String slug = node.path("slug").asText();
-            String url = "https://www.nodeseek.com/t/" + slug + "/" + id;
-
-            long views = node.path("views").asLong(0);
-            long likes = node.path("like_count").asLong(0);
-            long posts = node.path("posts_count").asLong(0);
-            String hotValue = formatNum(views) + " · " + likes + "赞";
-
-            String tag = null;
-            JsonNode tags = node.path("tags");
-            if (tags.isArray() && tags.size() > 0) {
-                tag = tags.get(0).path("name").asText();
-            }
-
-            String desc = posts > 0 ? (posts + " 回复") : null;
-            list.add(new HotItem(++rank, title, url, hotValue, views, desc, tag));
-            if (rank >= 30) break;
-        }
-        return list;
+        // NodeSeek使用Cloudflare保护，需要绕过验证
+        // 暂时返回空列表，建议使用官方API或其他方式
+        return List.of();
     }
 
     private String formatNum(long n) {

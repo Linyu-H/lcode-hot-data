@@ -45,51 +45,9 @@ public class JinshiSource implements HotSource {
 
     @Override
     public List<HotItem> fetch() throws Exception {
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("https://www.jin10.com/"))
-                .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-                .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-                .timeout(Duration.ofSeconds(15))
-                .GET()
-                .build();
-        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200 || resp.body() == null) {
-            throw new IllegalStateException("HTTP " + resp.statusCode());
-        }
-
-        Document doc = Jsoup.parse(resp.body());
-        Elements items = doc.select(".jin-flash-item, .flash-item, .news-item");
-
-        List<HotItem> list = new ArrayList<>();
-        int rank = 0;
-
-        for (Element item : items) {
-            Element titleElem = item.selectFirst(".jin-flash-item-content, .flash-content, .news-content");
-            if (titleElem == null) continue;
-
-            String title = titleElem.text();
-            if (title.isBlank()) continue;
-
-            Element timeElem = item.selectFirst(".jin-flash-item-time, .flash-time, .news-time");
-            String time = timeElem != null ? timeElem.text() : "";
-
-            String url = "https://www.jin10.com/";
-            Element linkElem = item.selectFirst("a");
-            if (linkElem != null && linkElem.hasAttr("href")) {
-                String href = linkElem.attr("href");
-                if (!href.isBlank()) {
-                    url = href.startsWith("http") ? href : "https://www.jin10.com" + href;
-                }
-            }
-
-            String hotValue = time.isBlank() ? "实时" : time;
-
-            list.add(new HotItem(++rank, title, url, hotValue, (long) rank, null, "快讯"));
-            if (rank >= 30) break;
-        }
-
-        return list;
+        // 金十数据 - 由于网站有复杂的反爬虫，暂时返回空列表
+        // 建议使用官方API或其他方式获取数据
+        return List.of();
     }
 
     private static HttpClient buildClient() {

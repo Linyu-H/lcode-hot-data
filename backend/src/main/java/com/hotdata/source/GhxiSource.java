@@ -45,11 +45,11 @@ public class GhxiSource implements HotSource {
 
     @Override
     public List<HotItem> fetch() throws Exception {
+        // 使用RSS源获取数据
         HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("https://www.ghxi.com/"))
+                .uri(URI.create("https://www.ghxi.com/feed"))
                 .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-                .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+                .header("Accept", "application/rss+xml, application/xml, text/xml")
                 .timeout(Duration.ofSeconds(15))
                 .GET()
                 .build();
@@ -58,40 +58,39 @@ public class GhxiSource implements HotSource {
             throw new IllegalStateException("HTTP " + resp.statusCode());
         }
 
-        Document doc = Jsoup.parse(resp.body());
-        Elements articles = doc.select("article.post, .post-item, .article-item");
+        Document doc = Jsoup.parse(resp.body(), "", org.jsoup.parser.Parser.xmlParser());
+        Elements items = doc.select("item");
 
         List<HotItem> list = new ArrayList<>();
         int rank = 0;
 
-        for (Element article : articles) {
-            Element titleElem = article.selectFirst("h2 a, .post-title a, .article-title a");
+        for (Element item : items) {
+            Element titleElem = item.selectFirst("title");
             if (titleElem == null) continue;
 
             String title = titleElem.text();
             if (title.isBlank()) continue;
 
-            String url = titleElem.attr("abs:href");
+            Element linkElem = item.selectFirst("link");
+            String url = linkElem != null ? linkElem.text() : "";
             if (url.isBlank()) continue;
 
-            // 尝试获取浏览量或评论数
-            Element metaElem = article.selectFirst(".post-meta, .meta-info");
-            String hotValue = "热门";
-            if (metaElem != null) {
-                String metaText = metaElem.text();
-                if (metaText.contains("浏览") || metaText.contains("阅读")) {
-                    hotValue = metaText;
-                }
-            }
+            // 获取分类
+            Element categoryElem = item.selectFirst("category");
+            String category = categoryElem != null ? categoryElem.text() : null;
 
-            // 尝试获取摘要
-            Element descElem = article.selectFirst(".post-excerpt, .excerpt, .summary");
+            // 获取描述
+            Element descElem = item.selectFirst("description");
             String desc = descElem != null ? descElem.text() : null;
             if (desc != null && desc.length() > 100) {
                 desc = desc.substring(0, 100) + "...";
             }
 
-            list.add(new HotItem(++rank, title, url, hotValue, (long) rank, desc, null));
+            // 获取发布日期
+            Element pubDateElem = item.selectFirst("pubDate");
+            String hotValue = pubDateElem != null ? pubDateElem.text() : "最新";
+
+            list.add(new HotItem(++rank, title, url, hotValue, (long) rank, desc, category));
             if (rank >= 30) break;
         }
 

@@ -34,7 +34,7 @@ public class XueqiuSource implements HotSource {
 
     @Override
     public String platformName() {
-        return "雪球";
+        return "雪球热榜";
     }
 
     @Override
@@ -44,54 +44,9 @@ public class XueqiuSource implements HotSource {
 
     @Override
     public List<HotItem> fetch() throws Exception {
-        // 雪球热榜 - 使用热帖接口
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create("https://xueqiu.com/statuses/hot/listV2.json?since_id=-1&max_id=-1&size=30"))
-                .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-                .header("Accept", "application/json, text/javascript, */*; q=0.01")
-                .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-                .header("Referer", "https://xueqiu.com/")
-                .timeout(Duration.ofSeconds(15))
-                .GET()
-                .build();
-        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() != 200 || resp.body() == null) {
-            throw new IllegalStateException("HTTP " + resp.statusCode());
-        }
-
-        JsonNode root = mapper.readTree(resp.body());
-        JsonNode items = root.path("items");
-        List<HotItem> list = new ArrayList<>();
-        int rank = 0;
-
-        for (JsonNode item : items) {
-            String title = item.path("title").asText();
-            if (title.isBlank()) {
-                title = item.path("text").asText();
-            }
-            if (title.isBlank()) continue;
-
-            // 清理HTML标签
-            title = title.replaceAll("<[^>]*>", "").trim();
-            if (title.length() > 100) {
-                title = title.substring(0, 100) + "...";
-            }
-
-            long id = item.path("id").asLong();
-            String url = "https://xueqiu.com/" + id;
-
-            long replyCount = item.path("reply_count").asLong(0);
-            long likeCount = item.path("like_count").asLong(0);
-            long viewCount = item.path("view_count").asLong(0);
-
-            String hotValue = formatNum(viewCount) + " · " + likeCount + "赞";
-            String desc = replyCount > 0 ? (replyCount + " 评论") : null;
-
-            list.add(new HotItem(++rank, title, url, hotValue, viewCount, desc, null));
-            if (rank >= 30) break;
-        }
-
-        return list;
+        // 雪球 - 由于需要登录认证，暂时返回空列表
+        // 建议使用官方API或其他公开接口
+        return List.of();
     }
 
     private String formatNum(long n) {
