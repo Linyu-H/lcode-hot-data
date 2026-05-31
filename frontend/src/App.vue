@@ -6,12 +6,19 @@ import HotBoard from './components/HotBoard.vue'
 import AggregateBoard from './components/AggregateBoard.vue'
 import TrendChart from './components/TrendChart.vue'
 import StatsChart from './components/StatsChart.vue'
+import PreviewPanel from './components/PreviewPanel.vue'
+import logoUrl from '../hot.logo.png'
 
 const store = useHotStore()
-const { boards, snapshot, aggregate, selected, connection } = storeToRefs(store)
+const { boards, snapshot, aggregate, selected, connection, selectedTrend } = storeToRefs(store)
 
 const activeTab = ref('all')
 const darkMode = ref(false)
+
+// 侧边预览面板状态
+const previewVisible = ref(false)
+const previewUrl = ref('')
+const previewTitle = ref('')
 
 onMounted(async () => {
   // 读取本地存储的主题设置
@@ -73,6 +80,17 @@ function pickItem(payload) {
   store.select(payload.platform, payload.title)
 }
 
+// 鼠标悬停热点 → 侧边弹出iframe预览
+function showPreview(payload) {
+  previewUrl.value = payload.url
+  previewTitle.value = payload.title
+  previewVisible.value = true
+}
+
+function closePreview() {
+  previewVisible.value = false
+}
+
 function refresh() {
   store.manualRefresh()
 }
@@ -87,8 +105,11 @@ const isAllView = computed(() => activeTab.value === 'all')
       <div class="container">
         <div class="header-content">
           <div class="brand">
-            <h1 class="logo">Lcode</h1>
-            <span class="tagline">热点聚合</span>
+            <img class="brand-logo" :src="logoUrl" alt="Lcode HotData" />
+            <div class="brand-copy">
+              <h1 class="logo">Lcode</h1>
+              <span class="tagline">热点聚合</span>
+            </div>
           </div>
           <div class="header-actions">
             <div class="stats">
@@ -136,12 +157,13 @@ const isAllView = computed(() => activeTab.value === 'all')
               :board="board"
               :selected="selected"
               @pick="pickItem"
+              @preview="showPreview"
             />
           </div>
 
           <aside class="charts-sidebar">
             <StatsChart :boards="boards" />
-            <TrendChart :selected="selected" :data="[]" />
+            <TrendChart :selected="selected" :data="selectedTrend" />
             <AggregateBoard :items="aggregate" />
           </aside>
         </div>
@@ -155,11 +177,12 @@ const isAllView = computed(() => activeTab.value === 'all')
               :board="board"
               :selected="selected"
               @pick="pickItem"
+              @preview="showPreview"
             />
           </div>
 
           <aside class="sidebar">
-            <TrendChart :selected="selected" :data="[]" />
+            <TrendChart :selected="selected" :data="selectedTrend" />
             <AggregateBoard :items="aggregate" />
           </aside>
         </div>
@@ -171,6 +194,14 @@ const isAllView = computed(() => activeTab.value === 'all')
         <p class="copyright">© 2026 Lcode · 热点聚合平台 · 仅供学习交流</p>
       </div>
     </footer>
+
+    <!-- 侧边热点预览面板 -->
+    <PreviewPanel
+      :visible="previewVisible"
+      :url="previewUrl"
+      :title="previewTitle"
+      @close="closePreview"
+    />
   </div>
 </template>
 
@@ -218,6 +249,20 @@ const isAllView = computed(() => activeTab.value === 'all')
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 8px 20px rgba(0, 113, 227, 0.18);
+}
+
+.brand-copy {
   display: flex;
   align-items: baseline;
   gap: 8px;

@@ -25,6 +25,9 @@ const isDark = computed(() => {
   return document.documentElement.classList.contains('dark')
 })
 
+const hasEnoughData = computed(() => props.data.length >= 2)
+const pointLabel = computed(() => `${props.data.length} 个数据点`)
+
 const option = computed(() => {
   const points = props.data.map(p => [p.timestamp, p.rank])
   const maxRank = points.length
@@ -136,10 +139,11 @@ watch(option, (v) => chart && chart.setOption(v, true))
         </span>
         <span class="meta muted" v-else>选择任意热点查看排名变化</span>
       </div>
+      <span v-if="selected" class="point-badge">{{ pointLabel }}</span>
     </header>
     <div class="chart" ref="chartEl"></div>
-    <div v-if="selected && data.length < 2" class="hint">
-      数据点不足，下次抓取后将累积更多趋势
+    <div v-if="selected && !hasEnoughData" class="hint">
+      已显示当前排名，下次抓取后自动连成趋势线
     </div>
     <div v-if="!selected" class="placeholder">
       <div class="ph-icon">📊</div>
@@ -237,6 +241,21 @@ h3 {
 
 .dark .meta.muted {
   color: #a1a1a6;
+}
+
+.point-badge {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.12);
+  color: #6d28d9;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dark .point-badge {
+  background: rgba(191, 90, 242, 0.18);
+  color: #dcb6ff;
 }
 
 .chart {

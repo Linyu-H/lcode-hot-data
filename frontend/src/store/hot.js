@@ -22,10 +22,41 @@ export const useHotStore = defineStore('hot', {
 
   getters: {
     boards: (s) => s.snapshot?.boards ?? [],
-    timestamp: (s) => s.snapshot?.timestamp ?? 0
+    timestamp: (s) => s.snapshot?.timestamp ?? 0,
+    // 当前选中热点的趋势数据
+    selectedTrend: (s) => {
+      if (!s.selected) return []
+      const key = `${s.selected.platform}::${s.selected.title}`
+      return s.trendCache[key] ?? []
+    }
   },
 
   actions: {
+    currentPoint(platform, title) {
+      const board = this.snapshot?.boards?.find(b => b.platform === platform)
+      const item = board?.items?.find(i => i.title === title)
+      if (!item) return null
+      return {
+        timestamp: this.snapshot?.timestamp || Date.now(),
+        rank: item.rank,
+        hotScore: item.hotScore ?? null,
+        hotValue: item.hotValue ?? null
+      }
+    },
+
+    ensureCurrentPoint(platform, title) {
+      const point = this.currentPoint(platform, title)
+      if (!point) return
+      const key = `${platform}::${title}`
+      const points = this.trendCache[key] ?? []
+      const exists = points.some(p => p.timestamp === point.timestamp && p.rank === point.rank)
+      if (!exists) {
+        this.trendCache[key] = [...points, point]
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .slice(-24)
+      }
+    },
+
     async loadSnapshot() {
       const r = await fetch('/api/hot/snapshot')
       if (!r.ok) throw new Error('snapshot failed')
@@ -62,20 +93,8 @@ export const useHotStore = defineStore('hot', {
 
     select(platform, title) {
       this.selected = { platform, title }
-      const key = `${platform}::${title}`
-      if (!this.trendCache[key] || this.trendCache[key].length === 0) {
-        const board = this.snapshot?.boards?.find(b => b.platform === platform)
-        const item = board?.items?.find(i => i.title === title)
-        if (item) {
-          this.trendCache[key] = [{
-            timestamp: this.snapshot.timestamp || Date.now(),
-            rank: item.rank,
-            hotScore: item.hotScore ?? null,
-            hotValue: item.hotValue ?? null
-          }]
-        }
-      }
-      this.loadTrend(platform, title)
+      this.ensureCurrentPoint(platform, title)
+      this.loadTrend(platform, title).then(() => this.ensureCurrentPoint(platform, title))
     },
 
     connect() {
@@ -90,7 +109,9 @@ export const useHotStore = defineStore('hot', {
           this.snapshot = snap
           this.loadAggregate()
           if (this.selected) {
+            this.ensureCurrentPoint(this.selected.platform, this.selected.title)
             this.loadTrend(this.selected.platform, this.selected.title)
+              .then(() => this.ensureCurrentPoint(this.selected.platform, this.selected.title))
           }
         } catch (e) {
           this.lastError = e.message

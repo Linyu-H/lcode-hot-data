@@ -6,7 +6,9 @@ const props = defineProps({
   selected: { type: Object, default: null }
 })
 
-const emit = defineEmits(['pick'])
+const emit = defineEmits(['pick', 'preview'])
+
+let hoverTimer = null
 
 const updatedAt = computed(() => {
   if (!props.board.updatedAt) return ''
@@ -22,6 +24,19 @@ const updatedAt = computed(() => {
 
 function pick(item) {
   emit('pick', { platform: props.board.platform, title: item.title })
+}
+
+// 悬停 400ms 后触发侧边预览，避免鼠标划过误触发
+function onEnter(item) {
+  if (!item.url) return
+  clearTimeout(hoverTimer)
+  hoverTimer = setTimeout(() => {
+    emit('preview', { url: item.url, title: item.title })
+  }, 400)
+}
+
+function onLeave() {
+  clearTimeout(hoverTimer)
 }
 
 function isActive(item) {
@@ -49,12 +64,17 @@ function isActive(item) {
         class="item"
         :class="{ active: isActive(item) }"
         @click="pick(item)"
+        @mouseenter="onEnter(item)"
+        @mouseleave="onLeave"
       >
         <span class="rank" :class="{ top: item.rank <= 3 }">{{ item.rank }}</span>
         <div class="content">
-          <a class="item-title" :href="item.url" target="_blank" @click.stop>
-            {{ item.title }}
-          </a>
+          <div class="title-row">
+            <a class="item-title" :href="item.url" target="_blank" @click.stop>
+              {{ item.title }}
+            </a>
+            <span v-if="item.url" class="preview-chip">悬停预览</span>
+          </div>
           <div class="info" v-if="item.extra || item.hotValue">
             <span v-if="item.extra" class="tag">{{ item.extra }}</span>
             <span v-if="item.hotValue" class="hot">{{ item.hotValue }}</span>
@@ -228,7 +248,15 @@ function isActive(item) {
   min-width: 0;
 }
 
+.title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .item-title {
+  flex: 1;
+  min-width: 0;
   font-size: 14px;
   color: #1d1d1f;
   line-height: 1.5;
@@ -251,6 +279,30 @@ function isActive(item) {
 
 .dark .item-title:hover {
   color: #0a84ff;
+}
+
+.preview-chip {
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateX(4px);
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(0, 113, 227, 0.1);
+  color: #0071e3;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.2s ease;
+}
+
+.item:hover .preview-chip {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.dark .preview-chip {
+  background: rgba(10, 132, 255, 0.16);
+  color: #64d2ff;
 }
 
 .info {
