@@ -32,8 +32,9 @@ services:
       - TZ=Asia/Shanghai
       - FLARESOLVERR_ENABLED=true
       - FLARESOLVERR_URL=http://flaresolverr:8191
+      - HOTDATA_PROXY_ENABLED=false  # Docker环境禁用代理
     ports:
-      - "8080:8080"
+      - "8080:8080"  # 改回8080，本地服务已停止
     depends_on:
       - flaresolverr
     restart: unless-stopped
@@ -54,7 +55,7 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: hotdata-frontend
     ports:
-      - "80:80"
+      - "3003:80"  # 使用3003端口，避免与OpenResty(80)冲突
     depends_on:
       - backend
     restart: unless-stopped
