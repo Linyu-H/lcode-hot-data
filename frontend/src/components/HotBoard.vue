@@ -3,7 +3,8 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   board: { type: Object, required: true },
-  selected: { type: Object, default: null }
+  selected: { type: Object, default: null },
+  compact: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['pick'])
@@ -90,7 +91,7 @@ function isActive(item) {
 </script>
 
 <template>
-  <div class="board">
+  <div class="board" :class="{ compact }">
     <div class="board-header">
       <h3 class="title">{{ board.platformName }}</h3>
       <div class="meta">
@@ -179,7 +180,10 @@ function isActive(item) {
             <div class="fallback-title">{{ hoverItem.title }}</div>
             <a class="fallback-link" :href="hoverItem.url" target="_blank">{{ hoverItem.url }}</a>
           </div>
-          <div class="tooltip-tip">点击条目查看趋势 · 点击标题打开完整页面</div>
+          <div class="tooltip-tip">
+            点击条目查看趋势
+            <a v-if="hoverItem.url" :href="hoverItem.url" target="_blank">打开原文 ↗</a>
+          </div>
         </div>
       </transition>
     </teleport>
@@ -203,6 +207,27 @@ function isActive(item) {
   background: #1d1d1f;
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.board.compact {
+  height: 390px;
+}
+
+.board.compact .board-header {
+  padding: 12px 14px;
+}
+
+.board.compact .item {
+  padding: 8px 14px;
+  gap: 10px;
+}
+
+.board.compact .item-title {
+  -webkit-line-clamp: 1;
+}
+
+.board.compact .info {
+  margin-top: 3px;
 }
 
 .board-header {
@@ -702,12 +727,25 @@ function isActive(item) {
 }
 
 .tooltip-tip {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
   color: #86868b;
   font-size: 11px;
 }
 
+.tooltip-tip a {
+  color: #0071e3;
+  font-weight: 700;
+  pointer-events: auto;
+}
+
 .dark .tooltip-tip {
   color: #a1a1a6;
+}
+
+.dark .tooltip-tip a {
+  color: #64d2ff;
 }
 
 .tooltip-fade-enter-active,

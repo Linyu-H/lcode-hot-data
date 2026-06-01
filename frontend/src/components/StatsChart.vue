@@ -1,154 +1,36 @@
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import * as echarts from 'echarts/core'
-import { PieChart, BarChart } from 'echarts/charts'
-import {
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  TitleComponent
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-
-echarts.use([PieChart, BarChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, CanvasRenderer])
+import { computed } from 'vue'
 
 const props = defineProps({
   boards: { type: Array, default: () => [] }
 })
 
-const chartEl = ref(null)
-let chart = null
+const categoryNames = {
+  dev: '开发者',
+  tech: '科技',
+  finance: '财经',
+  news: '新闻',
+  entertainment: '娱乐',
+  game: '游戏',
+  forum: '论坛',
+  welfare: '福利',
+  shopping: '购物',
+  comprehensive: '综合',
+  other: '其他'
+}
 
-// 检测深色模式
-const isDark = computed(() => {
-  return document.documentElement.classList.contains('dark')
-    || document.documentElement.getAttribute('data-theme') === 'dark'
-})
-
-const option = computed(() => {
-  const dark = isDark.value
-
-  // 按分类统计数据源数量
-  const categoryStats = {}
-  const categoryNames = {
-    dev: '开发者',
-    tech: '科技',
-    finance: '财经',
-    news: '新闻',
-    entertainment: '娱乐',
-    game: '游戏',
-    forum: '论坛',
-    welfare: '福利',
-    shopping: '购物',
-    comprehensive: '综合'
-  }
-
+const stats = computed(() => {
+  const map = {}
   props.boards.forEach(board => {
-    if (board.items.length > 0) {
-      const cat = board.category || 'other'
-      if (!categoryStats[cat]) {
-        categoryStats[cat] = { count: 0, items: 0 }
-      }
-      categoryStats[cat].count++
-      categoryStats[cat].items += board.items.length
-    }
+    const cat = board.category || 'other'
+    if (!map[cat]) map[cat] = { key: cat, name: categoryNames[cat] || cat, sources: 0, items: 0 }
+    map[cat].sources++
+    map[cat].items += board.items.length
   })
-
-  const pieData = Object.entries(categoryStats).map(([key, val]) => ({
-    name: categoryNames[key] || key,
-    value: val.items
-  }))
-
-  return {
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'item',
-      backgroundColor: dark ? 'rgba(29, 29, 31, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-      borderColor: dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-      textStyle: { color: dark ? '#f5f5f7' : '#1d1d1f' },
-      formatter: '{b}: {c} 条 ({d}%)'
-    },
-    legend: {
-      orient: 'horizontal',
-      bottom: 10,
-      textStyle: {
-        color: dark ? '#a1a1a6' : '#86868b',
-        fontSize: 11
-      }
-    },
-    series: [
-      {
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['50%', '45%'],
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderRadius: 8,
-          borderColor: dark ? '#1d1d1f' : '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: true,
-          position: 'outside',
-          formatter: '{b}\n{c}',
-          fontSize: 11,
-          color: dark ? '#f5f5f7' : '#1d1d1f'
-        },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 13,
-            fontWeight: 'bold'
-          },
-          itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
-          }
-        },
-        data: pieData,
-        color: [
-          '#0071e3',
-          '#5856d6',
-          '#ff9500',
-          '#ff3b30',
-          '#34c759',
-          '#00c7be',
-          '#ff2d55',
-          '#af52de',
-          '#ffcc00',
-          '#ff6482'
-        ]
-      }
-    ]
-  }
+  return Object.values(map).sort((a, b) => b.items - a.items)
 })
 
-function resize() { chart && chart.resize() }
-
-onMounted(() => {
-  chart = echarts.init(chartEl.value)
-  chart.setOption(option.value)
-  window.addEventListener('resize', resize)
-
-  // 监听主题变化
-  const observer = new MutationObserver(() => {
-    if (chart) {
-      chart.setOption(option.value, true)
-    }
-  })
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class', 'data-theme']
-  })
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', resize)
-  chart && chart.dispose()
-})
-
-watch(option, (v) => chart && chart.setOption(v, true))
+const maxItems = computed(() => Math.max(1, ...stats.value.map(s => s.items)))
 </script>
 
 <template>
@@ -160,7 +42,17 @@ watch(option, (v) => chart && chart.setOption(v, true))
         <span class="meta">按分类统计热点数量</span>
       </div>
     </header>
-    <div class="chart" ref="chartEl"></div>
+    <div class="stats-list">
+      <div v-for="item in stats" :key="item.key" class="stat-row">
+        <div class="stat-row-head">
+          <span class="cat-name">{{ item.name }}</span>
+          <span class="cat-value">{{ item.sources }}源 / {{ item.items }}条</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" :style="{ width: `${Math.max(6, item.items / maxItems * 100)}%` }"></div>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -243,8 +135,80 @@ h3 {
   color: #a1a1a6;
 }
 
-.chart {
+.stats-list {
   flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-row {
+  display: grid;
+  gap: 7px;
+}
+
+.stat-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cat-name {
+  color: #1d1d1f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dark .cat-name {
+  color: #f5f5f7;
+}
+
+.cat-value {
+  color: #86868b;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dark .cat-value {
+  color: #a1a1a6;
+}
+
+.bar-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.dark .bar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0071e3, #64d2ff);
+  box-shadow: 0 0 18px rgba(0, 113, 227, 0.22);
+}
+
+.dark .bar-fill {
+  background: linear-gradient(90deg, #0a84ff, #bf5af2);
+}
+
+.stats-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.stats-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.14);
+  border-radius: 3px;
+}
+
+.dark .stats-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 @media (max-width: 768px) {

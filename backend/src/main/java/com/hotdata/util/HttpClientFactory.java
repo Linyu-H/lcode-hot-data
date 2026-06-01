@@ -3,6 +3,7 @@ package com.hotdata.util;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.ProxyProvider;
@@ -44,7 +45,11 @@ public class HttpClientFactory {
                     .address(new InetSocketAddress(proxyHost, proxyPort)));
         }
 
+        ExchangeStrategies strategies = ExchangeStrategies.builder()
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
+                .build();
         WebClient.Builder builder = WebClient.builder()
+                .exchangeStrategies(strategies)
                 .clientConnector(new ReactorClientHttpConnector(http))
                 .defaultHeader("User-Agent", userAgent)
                 .defaultHeader("Accept", "application/json,text/html,*/*")

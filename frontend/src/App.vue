@@ -13,6 +13,9 @@ const { boards, snapshot, aggregate, selected, connection, selectedTrend } = sto
 
 const activeTab = ref('all')
 const darkMode = ref(false)
+const searchQuery = ref('')
+const onlyWithData = ref(localStorage.getItem('onlyWithData') === 'true')
+const compactMode = ref(localStorage.getItem('compactMode') === 'true')
 
 onMounted(async () => {
   // 读取本地存储的主题设置
@@ -43,22 +46,52 @@ function toggleDarkMode() {
 
 const tabs = computed(() => {
   const allBoards = boards.value
+  const makeTab = (id, name, list) => ({
+    id,
+    name,
+    boards: list,
+    sourceCount: list.length,
+    itemCount: list.reduce((sum, b) => sum + b.items.length, 0)
+  })
   return [
-    { id: 'all', name: '全部', boards: allBoards },
-    { id: 'dev', name: '开发者', boards: allBoards.filter(b => b.category === 'dev') },
-    { id: 'tech', name: '科技', boards: allBoards.filter(b => b.category === 'tech') },
-    { id: 'finance', name: '财经', boards: allBoards.filter(b => b.category === 'finance') },
-    { id: 'news', name: '新闻', boards: allBoards.filter(b => b.category === 'news') },
-    { id: 'entertainment', name: '娱乐', boards: allBoards.filter(b => b.category === 'entertainment' || b.category === 'game') },
-    { id: 'forum', name: '论坛', boards: allBoards.filter(b => b.category === 'forum') },
-    { id: 'welfare', name: '羊毛福利', boards: allBoards.filter(b => b.category === 'welfare' || b.category === 'shopping') },
-    { id: 'comprehensive', name: '综合', boards: allBoards.filter(b => b.category === 'comprehensive') }
+    makeTab('all', '全部', allBoards),
+    makeTab('dev', '开发者', allBoards.filter(b => b.category === 'dev')),
+    makeTab('tech', '科技', allBoards.filter(b => b.category === 'tech')),
+    makeTab('finance', '财经', allBoards.filter(b => b.category === 'finance')),
+    makeTab('news', '新闻', allBoards.filter(b => b.category === 'news')),
+    makeTab('entertainment', '娱乐', allBoards.filter(b => b.category === 'entertainment' || b.category === 'game')),
+    makeTab('forum', '论坛', allBoards.filter(b => b.category === 'forum')),
+    makeTab('welfare', '羊毛福利', allBoards.filter(b => b.category === 'welfare' || b.category === 'shopping')),
+    makeTab('comprehensive', '综合', allBoards.filter(b => b.category === 'comprehensive'))
   ]
 })
 
 const currentBoards = computed(() => {
   const tab = tabs.value.find(t => t.id === activeTab.value)
-  return tab ? tab.boards : []
+  let list = tab ? [...tab.boards] : []
+  const keyword = searchQuery.value.trim().toLowerCase()
+  if (onlyWithData.value) {
+    list = list.filter(b => b.items.length > 0)
+  }
+  if (keyword) {
+    list = list.filter(b => {
+      const boardHit = `${b.platformName} ${b.platform} ${b.category}`.toLowerCase().includes(keyword)
+      const itemHit = b.items.some(i => `${i.title} ${i.extra || ''} ${i.hotValue || ''}`.toLowerCase().includes(keyword))
+      return boardHit || itemHit
+    }).map(b => ({
+      ...b,
+      items: b.items.filter(i => {
+        if (`${b.platformName} ${b.platform} ${b.category}`.toLowerCase().includes(keyword)) return true
+        return `${i.title} ${i.extra || ''} ${i.hotValue || ''}`.toLowerCase().includes(keyword)
+      })
+    }))
+  }
+  return list.sort((a, b) => {
+    if (a.items.length === 0 && b.items.length > 0) return 1
+    if (a.items.length > 0 && b.items.length === 0) return -1
+    if (a.fromCache !== b.fromCache) return a.fromCache ? 1 : -1
+    return b.items.length - a.items.length
+  })
 })
 
 const totalCount = computed(() => {
@@ -79,6 +112,16 @@ function pickItem(payload) {
 
 function refresh() {
   store.manualRefresh()
+}
+
+function toggleOnlyWithData() {
+  onlyWithData.value = !onlyWithData.value
+  localStorage.setItem('onlyWithData', String(onlyWithData.value))
+}
+
+function toggleCompactMode() {
+  compactMode.value = !compactMode.value
+  localStorage.setItem('compactMode', String(compactMode.value))
 }
 
 // 判断是否是"全部"页面
@@ -129,7 +172,7 @@ const isAllView = computed(() => activeTab.value === 'all')
             @click="activeTab = tab.id"
           >
             {{ tab.name }}
-            <span class="badge">{{ tab.boards.length }}</span>
+            <span class="badge">{{ tab.sourceCount }}源 / {{ tab.itemCount }}条</span>
           </button>
         </div>
       </div>
@@ -137,6 +180,26 @@ const isAllView = computed(() => activeTab.value === 'all')
 
     <main class="main">
       <div class="container">
+        <section class="toolbar">
+          <div class="search-wrap">
+            <span class="search-icon">⌕</span>
+            <input
+              v-model="searchQuery"
+              class="search-input"
+              type="search"
+              placeholder="搜索数据源 / 热点标题 / 分类"
+            />
+          </div>
+          <div class="toolbar-actions">
+            <button class="filter-pill" :class="{ active: onlyWithData }" @click="toggleOnlyWithData">
+              只看有数据
+            </button>
+            <button class="filter-pill" :class="{ active: compactMode }" @click="toggleCompactMode">
+              紧凑模式
+            </button>
+          </div>
+        </section>
+
         <!-- 全部页面：特殊布局 -->
         <div v-if="isAllView" class="all-view">
           <div class="boards-masonry">
@@ -145,6 +208,7 @@ const isAllView = computed(() => activeTab.value === 'all')
               :key="board.platform"
               :board="board"
               :selected="selected"
+              :compact="compactMode"
               @pick="pickItem"
             />
           </div>
@@ -164,6 +228,7 @@ const isAllView = computed(() => activeTab.value === 'all')
               :key="board.platform"
               :board="board"
               :selected="selected"
+              :compact="compactMode"
               @pick="pickItem"
             />
           </div>
@@ -493,6 +558,95 @@ const isAllView = computed(() => activeTab.value === 'all')
   padding: 24px 0;
 }
 
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.search-wrap {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.dark .search-wrap {
+  background: #1d1d1f;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.search-icon {
+  color: #86868b;
+  font-size: 18px;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #1d1d1f;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.dark .search-input {
+  color: #f5f5f7;
+}
+
+.search-input::placeholder {
+  color: #86868b;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.filter-pill {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #1d1d1f;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.dark .filter-pill {
+  background: #1d1d1f;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+}
+
+.filter-pill.active {
+  background: rgba(0, 113, 227, 0.12);
+  border-color: rgba(0, 113, 227, 0.24);
+  color: #0071e3;
+}
+
+.dark .filter-pill.active {
+  background: rgba(10, 132, 255, 0.18);
+  border-color: rgba(100, 210, 255, 0.24);
+  color: #64d2ff;
+}
+
 /* 全部页面布局 */
 .all-view {
   display: grid;
@@ -627,6 +781,15 @@ const isAllView = computed(() => activeTab.value === 'all')
   .header-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-actions {
+    overflow-x: auto;
   }
 }
 
