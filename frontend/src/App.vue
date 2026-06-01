@@ -149,6 +149,15 @@ const isAllView = computed(() => activeTab.value === 'all')
             <span class="status" :class="'status-' + connection">
               <i></i>{{ statusText[connection] }}
             </span>
+            <a
+              class="btn-github"
+              href="https://github.com/Linyu-H/lcode-hot-data"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="打开 GitHub 仓库"
+            >
+              GitHub
+            </a>
             <button class="btn-theme" @click="toggleDarkMode" :title="darkMode ? '切换到浅色模式' : '切换到深色模式'">
               {{ darkMode ? '☀️' : '🌙' }}
             </button>
@@ -410,6 +419,33 @@ const isAllView = computed(() => activeTab.value === 'all')
 .dark .status-refreshing {
   background: #2d1f00;
   color: #ffd60a;
+}
+
+.btn-github {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: #1d1d1f;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.btn-github:hover {
+  background: #424245;
+  transform: translateY(-1px);
+}
+
+.dark .btn-github {
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+
+.dark .btn-github:hover {
+  background: #e8e8ed;
 }
 
 .btn-theme {
